@@ -1,0 +1,60 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: DeployAppDev
+    displayName: DevEnvironment
+    jobs:
+      - job: DeployDev
+        displayName: Deployment Dev
+        steps:
+          - checkout: self
+            persistCredentials: true
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: 17.x
+
+          - script: |
+              npx \
+              -p @semantic-release/git \
+              -p @semantic-release/exec \
+              semantic-release
+            name: generateVersionNumber
+            env:
+              GIT_CREDENTIALS: semanticVersioning:$(System.AccessToken)
+
+          - powershell: |
+              $config = Get-Content $(Pipeline.Workspace)/s/src/spa/src/assets/app-version.json | ConvertFrom-Json
+              $config.semanticVersion = "$(generateVersionNumber.semanticVersion)"
+              $config | ConvertTo-Json | Out-File $(Pipeline.Workspace)/s/src/spa/src/assets/app-version.json -Encoding utf8
+            condition: ne(variables['generateVersionNumber.semanticVersion'], '')
+            displayName: Patch frontend version if a new version was generated
+
+  - stage: DeployAppTest
+    displayName: TestEnvironment
+    dependsOn:
+      - DeployAppDev
+    jobs:
+      - job: DeployTest
+        variables:
+          semanticVersion: $[ stageDependencies.DeployAppDev.DeployDev.outputs['generateVersionNumber.semanticVersion'] ]
+        steps:
+          - script: |
+              echo $(semanticVersion)
+
+  - stage: DeployAppProd
+    displayName: ProdEnviroment
+    dependsOn:
+      - DeployAppDev
+      - DeployAppTest
+    jobs:
+      - job: DeployTest
+        variables:
+          semanticVersion: $[ stageDependencies.DeployAppDev.DeployDev.outputs['generateVersionNumber.semanticVersion'] ]
+        steps:
+          - script: |
+              echo $(semanticVersion)

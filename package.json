@@ -1,0 +1,29 @@
+{
+  "name": "semantic-release-playground",
+  "version": "1.0.0",
+  "description": "playground for semantic release",
+  "private": true,
+  "release": {
+    "branches": [
+      "main",
+      "development"
+    ],
+    "plugins": [
+      [
+        "@semantic-release/commit-analyzer",
+        {
+          "preset": "angular"
+        }
+      ],
+      [
+        "@semantic-release/git"
+      ],
+      [
+        "@semantic-release/exec",
+        {
+          "successCmd": "echo \"##vso[task.setvariable variable=semanticVersion;isOutput=true]${nextRelease.version}\""
+        }
+      ]
+    ]
+  }
+}
